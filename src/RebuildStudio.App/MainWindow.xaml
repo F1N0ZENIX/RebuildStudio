@@ -1,0 +1,107 @@
+<Window x:Class="RebuildStudio.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rebuild Studio AI" Width="1200" Height="800" MinWidth="960" MinHeight="640"
+        Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="190"/>
+    </Grid.RowDefinitions>
+
+    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+      <Border DockPanel.Dock="Right" Background="{StaticResource Panel}" CornerRadius="6" Padding="10,5">
+        <TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/>
+      </Border>
+      <TextBlock Text="Rebuild Studio AI" FontSize="22" FontWeight="SemiBold"/>
+    </DockPanel>
+
+    <Grid Grid.Row="1" Margin="0,0,0,12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="12"/>
+        <ColumnDefinition Width="1.15*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Coluna esquerda: análise de EXE -->
+      <Border Grid.Column="0" Background="{StaticResource Panel}" CornerRadius="8" Padding="14">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="110"/>
+          </Grid.RowDefinitions>
+          <TextBlock Grid.Row="0" Text="1. Análise de executável" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+          <WrapPanel Grid.Row="1">
+            <Button Content="Selecionar EXE…" Command="{Binding SelectExeCommand}"/>
+            <Button Content="Analisar" Command="{Binding AnalyzeCommand}"/>
+            <Button Content="Descompilar (ILSpy)" Command="{Binding DecompileCommand}"/>
+          </WrapPanel>
+          <StackPanel Grid.Row="2" Margin="0,0,0,8">
+            <TextBlock Text="{Binding SelectedPath}" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding FeasibilityText}" Foreground="{Binding FeasibilityBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+          </StackPanel>
+          <TextBox Grid.Row="3" Text="{Binding ReportText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
+                   VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+          <TextBlock Grid.Row="4" Text="Histórico de workspaces" Foreground="{StaticResource Muted}" Margin="0,10,0,4"/>
+          <ListBox Grid.Row="5" ItemsSource="{Binding History}"/>
+        </Grid>
+      </Border>
+
+      <!-- Coluna direita: fluxo de modificação -->
+      <Border Grid.Column="2" Background="{StaticResource Panel}" CornerRadius="8" Padding="14">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Text="2. Modificar, compilar e validar (projeto de teste controlado)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+          <StackPanel Grid.Row="1" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Provedor: OpenRouter   Modelo:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBox Text="{Binding ModelName, UpdateSourceTrigger=PropertyChanged}" Width="240"/>
+              <CheckBox Content="Usar IA" IsChecked="{Binding UseAi}" IsEnabled="{Binding HasApiKey}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+              <PasswordBox x:Name="KeyBox" Width="240" Padding="6" Background="{StaticResource Bg}"
+                           Foreground="{StaticResource Fg}" BorderBrush="{StaticResource Line}"/>
+              <Button Content="Salvar chave" Click="SaveKey_Click" Margin="8,0,0,0"/>
+              <Button Content="Remover" Click="RemoveKey_Click" Background="#3A4156" Margin="0,0,8,0"/>
+              <TextBlock Text="{Binding ApiKeyStatus}" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Row="2" Margin="0,0,0,8">
+            <TextBlock Text="Pedido (sem IA: vira o novo texto da saudação do programa de teste)" Foreground="{StaticResource Muted}" Margin="0,0,0,4"/>
+            <TextBox Text="{Binding RequestText, UpdateSourceTrigger=PropertyChanged}" Height="64" TextWrapping="Wrap" AcceptsReturn="True"/>
+          </StackPanel>
+
+          <WrapPanel Grid.Row="3">
+            <Button Content="1 Preparar workspace" Command="{Binding PrepareDemoCommand}"/>
+            <Button Content="2 Planejar" Command="{Binding PlanCommand}"/>
+            <Button Content="3 Aplicar" Command="{Binding ApplyCommand}"/>
+            <Button Content="4 Compilar e validar" Command="{Binding BuildCommand}"/>
+            <Button Content="5 Exportar" Command="{Binding ExportCommand}"/>
+            <Button Content="Restaurar original" Command="{Binding RestoreCommand}" Background="#3A4156"/>
+          </WrapPanel>
+
+          <TextBox Grid.Row="4" Text="{Binding PlanText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
+                   VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <TextBox x:Name="LogBox" Grid.Row="2" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+             FontFamily="Consolas" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+             TextChanged="LogBox_TextChanged"/>
+  </Grid>
+</Window>
