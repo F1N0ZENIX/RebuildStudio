@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restaurar
+        run: |
+          dotnet restore src/RebuildStudio.App/RebuildStudio.App.csproj
+          dotnet restore tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj
+
+      - name: Compilar
+        run: dotnet build src/RebuildStudio.App/RebuildStudio.App.csproj -c Release --no-restore
+
+      - name: Testes
+        run: dotnet test tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
+
+      - name: Publicar resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+
+      - name: Publicar aplicativo (win-x64)
+        run: dotnet publish src/RebuildStudio.App/RebuildStudio.App.csproj -c Release -r win-x64 --self-contained false -o publish
+
+      - name: Empacotar
+        shell: pwsh
+        run: Compress-Archive -Path publish\* -DestinationPath RebuildStudioAI-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RebuildStudioAI-win-x64
+          path: RebuildStudioAI-win-x64.zip
+
+      - name: Criar release (apenas em tags vX.Y.Z)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RebuildStudioAI-win-x64.zip
