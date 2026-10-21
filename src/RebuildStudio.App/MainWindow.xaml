@@ -31,7 +31,7 @@
           <TextBlock Text="R" FontSize="25" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White"/>
         </Border>
         <StackPanel VerticalAlignment="Center">
-          <TextBlock Text="REBUILD STUDIO" FontSize="22" FontWeight="Bold" LetterSpacing="1"/>
+          <TextBlock Text="REBUILD STUDIO" FontSize="22" FontWeight="Bold"/>
           <TextBlock Text="Análise • engenharia reversa • laboratório de modificações" Style="{StaticResource Hint}" Margin="0,3,0,0"/>
         </StackPanel>
       </StackPanel>
