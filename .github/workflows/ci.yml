@@ -1,56 +1,104 @@
-name: CI
+name: Build, test and release Rebuild Studio
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
-jobs:
-  build-test:
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+permissions:
+  contents: write
 
-      - uses: actions/setup-dotnet@v4
+concurrency:
+  group: rebuildstudio-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-release:
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      - name: Restaurar
+      - name: Restore dependencies
         run: |
           dotnet restore src/RebuildStudio.App/RebuildStudio.App.csproj
           dotnet restore tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj
 
-      - name: Compilar
+      - name: Build
         run: dotnet build src/RebuildStudio.App/RebuildStudio.App.csproj -c Release --no-restore
 
-      - name: Testes
+      - name: Run tests
         run: dotnet test tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
 
-      - name: Publicar resultados dos testes
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: TestResults
+      - name: Publish single-file self-contained EXE
+        run: >
+          dotnet publish src/RebuildStudio.App/RebuildStudio.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish
 
-      - name: Publicar aplicativo (win-x64)
-        run: dotnet publish src/RebuildStudio.App/RebuildStudio.App.csproj -c Release -r win-x64 --self-contained false -o publish
-
-      - name: Empacotar
+      - name: Verify single EXE output
         shell: pwsh
-        run: Compress-Archive -Path publish\* -DestinationPath RebuildStudioAI-win-x64.zip
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "publish/RebuildStudioAI.exe"
+          if (!(Test-Path $exe)) { throw "Publish did not produce RebuildStudioAI.exe" }
+          $files = @(Get-ChildItem publish -File)
+          if ($files.Count -ne 1 -or $files[0].Name -ne "RebuildStudioAI.exe") {
+            $files | ForEach-Object { Write-Host $_.Name }
+            throw "Publish directory must contain only RebuildStudioAI.exe"
+          }
+          "exe_path=$exe" >> $env:GITHUB_OUTPUT
+        id: verify
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: RebuildStudioAI-win-x64
-          path: RebuildStudioAI-win-x64.zip
+      - name: Resolve version and unique release tag
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content "Directory.Build.props"
+          $version = $props.Project.PropertyGroup.Version
+          if ([string]::IsNullOrWhiteSpace($version)) { $version = "0.1.0" }
+          $tag = "v$version-build.${{ github.run_number }}"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
-      - name: Criar release (apenas em tags vX.Y.Z)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create one release with one EXE
         uses: softprops/action-gh-release@v2
         with:
-          files: RebuildStudioAI-win-x64.zip
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: RebuildStudio release ${{ steps.version.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            Build automático do Rebuild Studio para Windows x64.
+
+            - Arquivo único: RebuildStudioAI.exe
+            - Publicação self-contained: não exige instalar o .NET separadamente.
+            - O release só é criado após compilação e testes bem-sucedidos.
+          files: publish/RebuildStudioAI.exe
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  pull-request-check:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: |
+          dotnet restore src/RebuildStudio.App/RebuildStudio.App.csproj
+          dotnet restore tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj
+      - name: Build and test
+        run: |
+          dotnet build src/RebuildStudio.App/RebuildStudio.App.csproj -c Release --no-restore
+          dotnet test tests/RebuildStudio.Tests/RebuildStudio.Tests.csproj -c Release --no-restore
